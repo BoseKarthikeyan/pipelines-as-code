@@ -14,8 +14,6 @@ import (
 	"github.com/openshift-pipelines/pipelines-as-code/pkg/provider"
 	tektonv1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	"go.uber.org/zap"
-	corev1 "k8s.io/api/core/v1"
-	apis "knative.dev/pkg/apis"
 )
 
 // AnalysisResult represents the result of an LLM analysis.
@@ -344,11 +342,10 @@ func countFailedResults(results []AnalysisResult) int {
 }
 
 // shouldTriggerRole evaluates the CEL expression to determine if a role should be triggered.
-// If no on_cel is provided, defaults to triggering only for failed PipelineRuns.
-func shouldTriggerRole(role v1alpha1.AnalysisRole, celContext map[string]any, pr *tektonv1.PipelineRun) (bool, error) {
+// If no on_cel is provided, the role runs for any completed PipelineRun.
+func shouldTriggerRole(role v1alpha1.AnalysisRole, celContext map[string]any, _ *tektonv1.PipelineRun) (bool, error) {
 	if role.OnCEL == "" {
-		succeededCondition := pr.Status.GetCondition(apis.ConditionSucceeded)
-		return succeededCondition != nil && succeededCondition.Status == corev1.ConditionFalse, nil
+		return true, nil
 	}
 
 	result, err := cel.Value(role.OnCEL, celContext["body"],
